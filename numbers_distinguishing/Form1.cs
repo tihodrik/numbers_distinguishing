@@ -17,45 +17,43 @@ namespace numbers_distinguishing
 		private System.Windows.Forms.GroupBox template;
 
 		// control[number] -> Pair(seq of 0s and 1s, result)
-		private Dictionary<List<int>, int> control;
+		private Dictionary<List<double>, int> control;
 
 		public int pointsX { get; private set; }
 		public int pointsY { get; private set; }
 
-		private List<int> w;
-		private List<int> x;
-		private double t;
-		private double s;
-		private int y;
+		private Neuron n;
 
 		public Form1()
 		{
 			pointsX = 3;
 			pointsY = 4;
 
-			InitializeComponent();
+            n = new Neuron(pointsX * pointsY);
+
+            InitializeComponent();
 			CreateFormElements(pointsX, pointsY);
 
-			Educate();
+			int steps = Educate();
 		}
 
 		private void SetControlVector()
 		{
-			control = new Dictionary<List<int>, int>(){
-				{(new int[] {1,1,1,1,0,1,1,0,1,1,1,1}).ToList<int>(), 1},
-				{(new int[] {0,1,1,0,1,1,0,1,0,1,1,1}).ToList<int>(), 0},
+			control = new Dictionary<List<double>, int>(){
+				{(new double[] {1,1,1,1,0,1,1,0,1,1,1,1}).ToList<double>(), 1},
+				{(new double[] {0,1,1,0,1,1,0,1,0,1,1,1}).ToList<double>(), 0},
 
-				{(new int[] {1,1,1,1,0,1,1,1,0,1,1,1}).ToList<int>(), 1},
-				{(new int[] {1,1,1,0,1,1,0,0,1,1,1,1}).ToList<int>(), 0},
+				{(new double[] {1,1,1,1,0,1,1,1,0,1,1,1}).ToList<double>(), 1},
+				{(new double[] {1,1,1,0,1,1,0,0,1,1,1,1}).ToList<double>(), 0},
 
-				{(new int[] {0,1,0,0,1,0,1,1,0,0,1,0}).ToList<int>(), 1},
-				{(new int[] {0,1,1,0,1,1,0,0,1,1,1,0}).ToList<int>(), 0},
+				{(new double[] {0,1,0,0,1,0,1,1,0,0,1,0}).ToList<double>(), 1},
+				{(new double[] {0,1,1,0,1,1,0,0,1,1,1,0}).ToList<double>(), 0},
 
-				{(new int[] {1,1,1,1,0,0,1,1,1,1,1,1}).ToList<int>(), 1},
-				{(new int[] {1,1,1,0,1,1,1,1,0,1,0,0}).ToList<int>(), 0},
+				{(new double[] {1,1,1,1,0,0,1,1,1,1,1,1}).ToList<double>(), 1},
+				{(new double[] {1,1,1,0,1,1,1,1,0,1,0,0}).ToList<double>(), 0},
 
-				{(new int[] {0,1,1,0,1,1,1,1,0,1,1,0}).ToList<int>(), 1},
-				{(new int[] {1,1,1,1,0,1,1,1,1,1,1,0}).ToList<int>(), 0},
+				{(new double[] {0,1,1,0,1,1,1,1,0,1,1,0}).ToList<double>(), 1},
+				{(new double[] {1,1,1,1,0,1,1,1,1,1,1,0}).ToList<double>(), 0},
 			};
 			//OpenFileDialog dialog = new OpenFileDialog();
 			//dialog.DefaultExt = "txt";
@@ -132,33 +130,15 @@ namespace numbers_distinguishing
 
 		private void Check_btn_click(object sender, EventArgs e)
 		{
-			s = 0;
+			n.SetX(template);
 
-			SetX();
-
-			for (int i = 0; i < pointsX * pointsY; i++)
-			{
-				s += w[i] * x[i];
-			}
-
-			if (s >= t)
+			if (n.Y == 1)
 			{
 				result_tb.Text = "EVEN";
 			}
 			else
 			{
-				result_tb.Text = "UNEVEN";
-			}
-		}
-
-		private void SetX()
-		{
-			for (int i = 0; i < pointsX * pointsY; i++)
-			{
-				if ((template.Controls[i] as CheckBox).Checked)
-					x[i] = 1;
-				else
-					x[i] = 0;
+				result_tb.Text = "ODD";
 			}
 		}
 
@@ -166,103 +146,41 @@ namespace numbers_distinguishing
 		{
 			bool wrong_answ;
 			int count = 0;
-			Step1();
 
-			do
+            SetControlVector();
+
+            n.SetW();
+            n.Teta = 0.0;
+
+            do
 			{
 				count++;
 				wrong_answ = false;
 				foreach (var number in control)
 				{
-					Step2(number.Key);
+					n.SetX(number.Key);
 					do
 					{
-						y = Step3();
-						if (y != number.Value)
+						if (n.Y != number.Value)
 						{
 							wrong_answ = true;
-							switch (y)
+							switch (n.Y)
 							{
 								case 0:
-									Step4_0();
+									n.IncreaseW();
 									break;
 								case 1:
-									Step4_1();
+									n.DecreaseW();
 									break;
 								default:
-									new ArgumentOutOfRangeException("Step 3 returns wrong param y");
+									new ArgumentOutOfRangeException("Wrong param y");
 									break;
 							}
 						}
-					} while (y != number.Value);
+					} while (n.Y != number.Value);
 				}
 			} while (wrong_answ);
 			return count;
-		}
-
-		/// <summary>
-		/// initializaton of w[i] and t
-		/// </summary>
-		private void Step1()
-		{
-			SetControlVector();
-			Random rand = new Random();
-
-			w = new List<int>();
-			for (int i = 0; i < pointsX * pointsY; i++)
-			{
-				w.Add(rand.Next(-5, 5));
-			}
-
-			t = 0;
-		}
-
-		/// <summary>
-		/// set x as a sequence of 0s and 1s
-		/// </summary>
-		private void Step2(List<int> _x)
-		{
-			x = _x;
-		}
-
-		/// <summary>
-		/// Sum weights
-		/// </summary>
-		private int Step3()
-		{
-			s = 0;
-			for (int i = 0; i < pointsX * pointsY; i++)
-			{
-				s += w[i] * x[i];
-			}
-
-			if (s >= t)
-			{
-				return 1;
-			}
-			return 0;
-		}
-
-		private void Step4_0()
-		{
-			for (int i = 0; i < pointsX * pointsY; i++)
-			{
-				if (x[i] == 1)
-				{
-					w[i] += x[i];
-				}
-			}
-		}
-
-		private void Step4_1()
-		{
-			for (int i = 0; i < pointsX * pointsY; i++)
-			{
-				if (x[i] == 1)
-				{
-					w[i] -= x[i];
-				}
-			}
 		}
 	}
 }
